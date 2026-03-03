@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const m = require\\(''pdfmake''\\); console.log\\(JSON.stringify\\(m, null, 2\\)\\)\")",
+      "Bash(node -e \":*)"
+    ]
+  }
+}
