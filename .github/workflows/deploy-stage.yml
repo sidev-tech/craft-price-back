@@ -16,5 +16,5 @@ jobs:
           username: ${{ secrets.STAGE_SSH_USER }}
           key: ${{ secrets.STAGE_SSH_PRIVATE_KEY }}
           script: |
-            cd /app/price-craft/price-craft-catalog-ms
+            cd /app/price-craft/craft-price-back
             task deploy-stage
