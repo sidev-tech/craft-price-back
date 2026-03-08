@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  deploy-prod:
+    cmds:
+      - git stash
+      - git checkout main
+      - git pull
+      - docker-compose build
+      - docker-compose down --remove-orphans
+      - docker-compose up -d
+
+  deploy-stage:
+    cmds:
+      - git stash
+      - git checkout dev
+      - git pull
+      - docker-compose build
+      - docker-compose down --remove-orphans
+      - docker-compose up -d
