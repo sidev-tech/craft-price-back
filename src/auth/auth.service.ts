@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -50,9 +51,22 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
-    await this.mailService.sendEmailVerification(dto.email, verificationToken);
 
-    return { message: 'Реєстрація успішна. Перевірте пошту для підтвердження.' };
+    try {
+      await this.mailService.sendEmailVerification(
+        dto.email,
+        verificationToken,
+      );
+    } catch {
+      await this.userRepository.delete(user.id);
+      throw new InternalServerErrorException(
+        'Не вдалося надіслати email підтвердження. Спробуйте пізніше.',
+      );
+    }
+
+    return {
+      message: 'Реєстрація успішна. Перевірте пошту для підтвердження.',
+    };
   }
 
   async verifyEmail(token: string) {
@@ -60,7 +74,8 @@ export class AuthService {
       where: { emailVerificationToken: token },
     });
 
-    if (!user) throw new BadRequestException('Невалідний або прострочений токен');
+    if (!user)
+      throw new BadRequestException('Невалідний або прострочений токен');
 
     if (user.emailVerificationExpires < new Date()) {
       throw new BadRequestException('Токен підтвердження прострочений');
@@ -99,7 +114,8 @@ export class AuthService {
       where: { id: tokenId, userId },
     });
 
-    if (!storedToken) throw new UnauthorizedException('Невалідний refresh токен');
+    if (!storedToken)
+      throw new UnauthorizedException('Невалідний refresh токен');
 
     if (storedToken.expiresAt < new Date()) {
       await this.refreshTokenRepository.delete({ id: tokenId });
@@ -139,7 +155,13 @@ export class AuthService {
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1h
     await this.userRepository.save(user);
 
-    await this.mailService.sendPasswordReset(dto.email, rawToken);
+    try {
+      await this.mailService.sendPasswordReset(dto.email, rawToken);
+    } catch {
+      user.passwordResetToken = null;
+      user.passwordResetExpires = null;
+      await this.userRepository.save(user);
+    }
     return genericResponse;
   }
 
@@ -153,7 +175,8 @@ export class AuthService {
       where: { passwordResetToken: hashedToken },
     });
 
-    if (!user) throw new BadRequestException('Невалідний токен скидання пароля');
+    if (!user)
+      throw new BadRequestException('Невалідний токен скидання пароля');
 
     if (user.passwordResetExpires < new Date()) {
       throw new BadRequestException('Токен скидання пароля прострочений');
@@ -171,7 +194,15 @@ export class AuthService {
   }
 
   getProfile(user: User) {
-    const { password, emailVerificationToken, emailVerificationExpires, passwordResetToken, passwordResetExpires, refreshTokens, ...profile } = user;
+    const {
+      password: _password,
+      emailVerificationToken: _emailVerificationToken,
+      emailVerificationExpires: _emailVerificationExpires,
+      passwordResetToken: _passwordResetToken,
+      passwordResetExpires: _passwordResetExpires,
+      refreshTokens: _refreshTokens,
+      ...profile
+    } = user;
     return profile;
   }
 
